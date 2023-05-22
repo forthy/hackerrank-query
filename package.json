@@ -1,0 +1,40 @@
+{
+  "name": "hackerrank-svc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest",
+    "test-coverage": "vitest --coverage",
+    "dev": "nodemon",
+    "build": "rm -rf build && node esbuild.js",
+    "start": "npm run build && node build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/autoload": "^5.7.1",
+    "@fastify/funky": "^3.0.0",
+    "dotenv": "^16.0.3",
+    "fastify": "^4.17.0",
+    "fastify-plugin": "^4.5.0",
+    "nodemon": "^2.0.22"
+  },
+  "devDependencies": {
+    "@types/node": "^20.1.3",
+    "@types/supertest": "^2.0.12",
+    "@vitest/coverage-c8": "^0.31.1",
+    "axios": "^1.4.0",
+    "esbuild": "^0.17.19",
+    "fp-ts": "^2.15.0",
+    "fp-ts-std": "^0.16.0",
+    "newtype-ts": "^0.3.5",
+    "supertest": "^6.3.3",
+    "testcontainers": "^9.8.0",
+    "ts-pattern": "^4.3.0",
+    "typescript": "^5.0.4",
+    "vitest": "^0.31.0",
+    "wiremock-captain": "^3.3.0"
+  }
+}
