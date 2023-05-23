@@ -154,6 +154,7 @@ describe('HackerRankRepo should', () => {
     const candidateEmail = 'candidatea@mailservice.com'
     const cem = T.unsafeCandidateEmailOf(candidateEmail)
     const tests = [
+      T.testOf(T.unsafeTestIdOf('261732'))(T.unsafeTestNameOf('Test 3')),
       T.testOf(T.unsafeTestIdOf('not-the-id'))(T.unsafeTestNameOf('Test 2')),
       T.testOf(T.unsafeTestIdOf(testId))(T.unsafeTestNameOf(testName)),
     ]
@@ -239,6 +240,42 @@ describe('HackerRankRepo should', () => {
                 (e) => T.networkErrorOf(`${JSON.stringify(e, null, 2)}`)
               )
             ),
+            TE.flatMap((_) =>
+              TE.tryCatch(
+                () =>
+                  stub.register(
+                    {
+                      method: 'GET',
+                      endpoint: `/x/api/v3/tests/261732/candidates/search?search=${candidateEmail}&limit=10&offset=0`,
+                      headers: { Authorization: `Bearer ${c.key}` },
+                    },
+                    {
+                      status: 200,
+                      body: {
+                        data: [
+                          {
+                            id: '18119687',
+                            email: candidateEmail,
+                            full_name: 'John Doe',
+                            score: 125,
+                            attempt_endtime: '2020-07-04T13:07:46+0000',
+                            status: 7,
+                            plagiarism_status: false,
+                          },
+                        ],
+                        page_total: 0,
+                        offset: 0,
+                        previous: '',
+                        next: '',
+                        first: `${wiremockEndpoint}/x/api/v3/tests/261732/candidates/search?offset=0&limit=10&search=${candidateEmail}`,
+                        last: `${wiremockEndpoint}/x/api/v3/tests/261732/candidates/search?offset=-100&limit=10&search=${candidateEmail}`,
+                        total: 0,
+                      },
+                    }
+                  ),
+                (e) => T.networkErrorOf(`${JSON.stringify(e, null, 2)}`)
+              )
+            ),
             TE.flatMap((_) => HRR.findCandidate(c)(tests)(cem)),
             TE.match(
               (e) => fail(e.msg),
@@ -247,6 +284,9 @@ describe('HackerRankRepo should', () => {
                 expect(candidate.fullName).toStrictEqual(T.unsafeFullNameOf('John Doe'))
                 expect(candidate.email).toStrictEqual(cem)
                 expect(candidate.records).toStrictEqual([
+                  T.testRecordOf(T.unsafeTestIdOf('261732'))(T.unsafeTestNameOf('Test 3'))(T.Clean)(
+                    T.attemptTimeOf(D.unsafeParseDate('2020-07-04T13:07:46+0000'))
+                  )(T.testScoreOf(125)),
                   T.testRecordOf(T.unsafeTestIdOf(testId))(T.unsafeTestNameOf(testName))(T.Suspected)(
                     T.attemptTimeOf(D.unsafeParseDate('2020-05-02T13:07:46+0000'))
                   )(T.testScoreOf(99)),

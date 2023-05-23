@@ -49,19 +49,13 @@ export const listAllTests: (config: T.HackerRankSvcConfig) => TE.TaskEither<T.Ha
             O.of(T.testOf),
             O.ap(T.testIdOf(a.id)),
             O.ap(T.testNameOf(a.name)),
-            O.match(
-              () => TE.left(T.NoRequiredData),
-              (t) => TE.right(t)
-            )
+            TE.fromOption(() => T.NoRequiredData)
           )
         ),
         TE.flatMap((a) =>
           pipe(
             NEA.fromArray(ROA.toArray(a)),
-            O.match(
-              () => TE.left(T.NoTestFound),
-              (na) => TE.right(na)
-            )
+            TE.fromOption(() => T.NoTestFound)
           )
         )
       )
@@ -152,7 +146,7 @@ const _rec =
     const _fc = _findCandidate(config)(candidateEmail)
 
     for (let t of tests) {
-      r = await pipe(
+      let x = await pipe(
         _fc(t),
         TE.match((e) => {
           // DEBUG
@@ -162,8 +156,11 @@ const _rec =
         }, identity)
       )()
 
-      if (r !== undefined) return r
+      if (x !== undefined)
+        r = { id: x.id, fullName: x.fullName, email: x.email, records: r !== undefined ? NEA.concat(x.records)(r.records) : x.records }
     }
+
+    return r
   }
 
 export const findCandidate: (
