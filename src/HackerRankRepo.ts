@@ -182,3 +182,26 @@ export const findCandidate: (
           : E.right(x)
       )
     )
+
+export const pdfReportBy: (
+  config: T.HackerRankSvcConfig
+) => (testId: T.TestId) => (candidateId: T.CandidateId) => TE.TaskEither<T.HackerRankRepoError, T.PDFUrl> =
+  (config) => (testId) => (candidateId) =>
+    pipe(
+      TE.tryCatch(
+        () =>
+          axios.get<string>(
+            `${T.fromHackerRankSvc(config.svc)}/x/api/v3/tests/${T.fromTestId(testId)}/candidates/${T.fromCandidateId(
+              candidateId
+            )}/pdf?format=url`,
+            {
+              headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${config.key}`,
+              },
+            }
+          ),
+        (e) => T.networkErrorOf(JSON.stringify(e, null, 2))
+      ),
+      TE.flatMap(x => TE.fromOption(() => T.noPDFUrl(testId)(candidateId))(T.pdfUrlOf(x.data)))
+    )

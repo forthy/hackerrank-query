@@ -59,6 +59,13 @@ export const candidateOf: (
 ) => (fullName: FullName) => (email: CandidateEmail) => (records: NEA.NonEmptyArray<TestRecord>) => Candidate =
   (id) => (fullName) => (email) => (records) => ({ id, fullName, email, records })
 
+export interface PDFUrl extends Newtype<{ readonly PDFUrl: unique symbol }, string> {}
+const prismPdfUrl = prism<PDFUrl>(isNonEmptyString)
+const isoPdfUrl = iso<PDFUrl>()
+export const pdfUrlOf: (u: string) => O.Option<PDFUrl> = (u) => prismPdfUrl.getOption(u)
+export const fromPdfUrl: (u: PDFUrl) => string = (u) => prismPdfUrl.reverseGet(u)
+export const unsafePdfUrlOf: (u: string) => PDFUrl = (u) => isoPdfUrl.wrap(u)
+
 export const Suspected = { _tag: 'Suspected' }
 export const Clean = { _tag: 'Clean' }
 export type PlagiarismStatus = typeof Suspected | typeof Clean
@@ -106,7 +113,13 @@ export const noFinalCandidateFound: (testIds: Array<TestId>) => (candidateEmail:
     msg: `Failed to find any candidate with all test Ids: [${JSON.stringify(testIds)}] and email: [${candidateEmailOf}]`,
   })
 export type NetworkError = Readonly<{ _tag: 'NetworkError'; msg: string }>
-export type HackerRankRepoError = ListTestsError | FindCandidateError | NetworkError
+
+export type PDFUrlError = Readonly<{ _tag: 'PDFUrlError'; msg: string }>
+export const noPDFUrl: (testId: TestId) => (candidateId: CandidateId) => PDFUrlError = (testId) => (candidateId) => ({
+  _tag: 'PDFUrlError',
+  msg: `No PDF URL from test ID: [${fromTestId(testId)}] and candidateId: [${fromCandidateId(candidateId)}]`,
+})
+export type HackerRankRepoError = ListTestsError | FindCandidateError | NetworkError | PDFUrlError
 
 export const networkErrorOf: (msg: string) => NetworkError = (msg) => ({ _tag: 'NetworkError', msg })
 

@@ -305,6 +305,55 @@ describe('HackerRankRepo should', () => {
     await runBlock(3000)(fn)()
   })
 
+  it(`download a candidate's PDF file`, async () => {
+    const testId = '261751'
+    const candidateId = '73868318'
+    const wiremockEndpoint = `http://${wireMockContainer.getHost()}:${wireMockContainer.getMappedPort(8080)}`
+
+    const fn = async () => {
+      const config: O.Option<T.HackerRankSvcConfig> = A.sequenceS(O.Apply)({
+        key: pipe(C.apiKey, O.flatMap(T.apiKeyOf)),
+        svc: pipe(O.some(wiremockEndpoint), O.flatMap(T.hackerRankSvcOf)),
+      })
+
+      pipe(
+        config,
+        O.map(async (c) => {
+          const stub = new WireMock(wiremockEndpoint)
+
+          await pipe(
+            TE.tryCatch(
+              () =>
+                stub.register(
+                  {
+                    method: 'GET',
+                    endpoint: `/x/api/v3/tests/${testId}/candidates/${candidateId}/pdf?format=url`,
+                    headers: { Authorization: `Bearer ${c.key}` },
+                  },
+                  {
+                    status: 200,
+                    body: `https://downloads.hackerrank.com/reports/${testId}/pdfs/52614834?AWSAccessKeyId=QKIAR6O9GABX5DNFO1PV&Expires=1685027152&Signature=X2vXCCJFUKJubq%2B0LqUAIXFn8pQ%3D&response-content-disposition=attachment%3B%20filename%3DReport_Test_2_432221a_mail.com.pdf&response-content-type=application%2Fpdf`,
+                  }
+                ),
+              (e) => T.networkErrorOf(`${JSON.stringify(e, null, 2)}`)
+            ),
+            TE.flatMap((_) => HRR.pdfReportBy(c)(T.unsafeTestIdOf(testId))(T.unsafeCandidateIdOf(candidateId))),
+            TE.match(
+              (e) => fail(e.msg),
+              (url) =>
+                expect(T.fromPdfUrl(url)).toBe(
+                  `https://downloads.hackerrank.com/reports/${testId}/pdfs/52614834?AWSAccessKeyId=QKIAR6O9GABX5DNFO1PV&Expires=1685027152&Signature=X2vXCCJFUKJubq%2B0LqUAIXFn8pQ%3D&response-content-disposition=attachment%3B%20filename%3DReport_Test_2_432221a_mail.com.pdf&response-content-type=application%2Fpdf`
+                )
+            )
+          )()
+        }),
+        O.match(() => fail('No configuration given!'), identity)
+      )
+    }
+
+    await runBlock(3000)(fn)()
+  })
+
   afterAll(async () => {
     await wireMockContainer.stop()
   })
