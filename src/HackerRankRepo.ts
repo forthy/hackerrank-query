@@ -138,30 +138,33 @@ const _findCandidate: (
       })
     )
 
-const _rec =
-  (config: T.HackerRankSvcConfig, tests: Array<T.Test>, candidateEmail: T.CandidateEmail): TK.Task<T.Candidate | undefined> =>
-  async () => {
-    let r: T.Candidate | undefined
+const _rec = (config: T.HackerRankSvcConfig, tests: Array<T.Test>, candidateEmail: T.CandidateEmail): TK.Task<T.Candidate | undefined> => {
+  const _fc = _findCandidate(config)(candidateEmail)
 
-    const _fc = _findCandidate(config)(candidateEmail)
-
-    for (let t of tests) {
-      let x = await pipe(
-        _fc(t),
-        TE.match((e) => {
-          // DEBUG
-          console.error(JSON.stringify(e, null, 2))
-
-          return undefined
-        }, identity)
-      )()
-
-      if (x !== undefined)
-        r = { id: x.id, fullName: x.fullName, email: x.email, records: r !== undefined ? NEA.concat(x.records)(r.records) : x.records }
-    }
-
-    return r
-  }
+  return pipe(
+    tests,
+    A.reduce<T.Test, TK.Task<T.Candidate | undefined>>(TK.of(undefined), (result, t) =>
+      TK.flatten(
+        pipe(
+          _fc(t),
+          TE.match(
+            (e) => pipe(console.error(JSON.stringify(e, null, 2)), (_) => result),
+            (x) =>
+              pipe(
+                result,
+                TK.map((r) => ({
+                  id: x.id,
+                  fullName: x.fullName,
+                  email: x.email,
+                  records: r !== undefined ? NEA.concat(x.records)(r.records) : x.records,
+                }))
+              )
+          )
+        )
+      )
+    )
+  )
+}
 
 export const findCandidate: (
   config: T.HackerRankSvcConfig
@@ -203,5 +206,5 @@ export const pdfReportBy: (
           ),
         (e) => T.networkErrorOf(JSON.stringify(e, null, 2))
       ),
-      TE.flatMap(x => TE.fromOption(() => T.noPDFUrl(testId)(candidateId))(T.pdfUrlOf(x.data)))
+      TE.flatMap((x) => TE.fromOption(() => T.noPDFUrl(testId)(candidateId))(T.pdfUrlOf(x.data)))
     )
