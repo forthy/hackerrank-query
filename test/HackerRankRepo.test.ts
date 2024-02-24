@@ -12,10 +12,12 @@ import * as D from 'fp-ts-std/Date'
 import { GenericContainer, StartedTestContainer } from 'testcontainers'
 import { fail } from 'assert'
 import { WireMock, IWireMockRequest, IWireMockResponse } from 'wiremock-captain'
+import { lazy, memoize } from 'fp-ts-std/Lazy'
+import { Time, milliseconds, seconds } from '@buge/ts-units/time'
 
-const runBlock: (ms: number) => (fn: () => void) => TA.Task<void> = (ms) => (fn) => {
+const runBlock: (ms: Time) => (fn: () => void) => TA.Task<void> = (ms) => (fn) => {
   fn()
-  return () => new Promise((r) => setTimeout(r, ms))
+  return () => new Promise((r) => setTimeout(r, ms.in(milliseconds).amount))
 }
 
 const expectedTestsList: NEA.NonEmptyArray<T.Test> = pipe(
@@ -27,14 +29,22 @@ const expectedTestsList: NEA.NonEmptyArray<T.Test> = pipe(
 )
 
 describe('HackerRankRepo should', () => {
-  let wireMockContainer: StartedTestContainer
+  const containerInfo = memoize(
+    lazy(async () => {
+      const wc = await new GenericContainer('wiremock/wiremock:3.4.1').withName('wiremock').withExposedPorts(8080).start()
+
+      return { container: wc, host: wc.getHost(), port: wc.getMappedPort(8080) }
+    })
+  )
 
   beforeAll(async () => {
-    wireMockContainer = await new GenericContainer('wiremock/wiremock:2.35.0').withName('wiremock').withExposedPorts(8080).start()
-  }, 120000)
+    await containerInfo()
+  }, 360000)
 
   it('list all tests', async () => {
-    const wiremockEndpoint = `http://${wireMockContainer.getHost()}:${wireMockContainer.getMappedPort(8080)}`
+    const { host, port } = await containerInfo()
+
+    const wiremockEndpoint = `http://${host}:${port}`
     const fn = () => {
       const config: O.Option<T.HackerRankSvcConfig> = A.sequenceS(O.Apply)({
         key: pipe(C.apiKey, O.flatMap(T.apiKeyOf)),
@@ -145,7 +155,7 @@ describe('HackerRankRepo should', () => {
       )
     }
 
-    await runBlock(3000)(fn)()
+    await runBlock(seconds(3))(fn)()
   })
 
   it('search a candidate', async () => {
@@ -158,7 +168,10 @@ describe('HackerRankRepo should', () => {
       T.testOf(T.unsafeTestIdOf('not-the-id'))(T.unsafeTestNameOf('Test 2')),
       T.testOf(T.unsafeTestIdOf(testId))(T.unsafeTestNameOf(testName)),
     ]
-    const wiremockEndpoint = `http://${wireMockContainer.getHost()}:${wireMockContainer.getMappedPort(8080)}`
+    const { host, port } = await containerInfo()
+
+    const wiremockEndpoint = `http://${host}:${port}`
+    // const wiremockEndpoint = `http://${wireMockContainer.getHost()}:${wireMockContainer.getMappedPort(8080)}`
 
     const fn = () => {
       const config: O.Option<T.HackerRankSvcConfig> = A.sequenceS(O.Apply)({
@@ -302,13 +315,16 @@ describe('HackerRankRepo should', () => {
       )
     }
 
-    await runBlock(3000)(fn)()
+    await runBlock(seconds(3))(fn)()
   })
 
   it(`download a candidate's PDF file`, async () => {
     const testId = '261751'
     const candidateId = '73868318'
-    const wiremockEndpoint = `http://${wireMockContainer.getHost()}:${wireMockContainer.getMappedPort(8080)}`
+    const { host, port } = await containerInfo()
+
+    const wiremockEndpoint = `http://${host}:${port}`
+    // const wiremockEndpoint = `http://${wireMockContainer.getHost()}:${wireMockContainer.getMappedPort(8080)}`
 
     const fn = async () => {
       const config: O.Option<T.HackerRankSvcConfig> = A.sequenceS(O.Apply)({
@@ -351,10 +367,12 @@ describe('HackerRankRepo should', () => {
       )
     }
 
-    await runBlock(3000)(fn)()
+    await runBlock(seconds(3))(fn)()
   })
 
   afterAll(async () => {
-    await wireMockContainer.stop()
+    const { container } = await containerInfo()
+
+    await container.stop()
   })
 })
